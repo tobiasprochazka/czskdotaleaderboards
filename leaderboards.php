@@ -1,26 +1,43 @@
 <?php
-echo("<!DOCTYPE html>
-<html>
-<head>
-<style>
-table {
+
+date_default_timezone_set('Europe/Prague');
+
+$script_tz = date_default_timezone_get();
+
+
+function get_string_between($string, $start, $end){
+  $string = ' ' . $string;
+  $ini = strpos($string, $start);
+  if ($ini == 0) return '';
+  $ini += strlen($start);
+  $len = strpos($string, $end, $ini) - $ini;
+  return substr($string, $ini, $len);
+}
+
+echo("<!DOCTYPE html><html><head><link rel=\"icon\" href=\"/favicon.ico\">
+<style>table {
   font-family: arial, sans-serif;
   border-collapse: collapse;
-  width: 100%;
+  width: 40%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 td, th {
-  border: 1px solid #dddddd;
+  border: 3px solid #3B3A38;
   text-align: left;
   padding: 8px;
+  color: #D0D0D0;
 }
-
+tr:nth-child(odd) {
+  background-color: #232426;
+}
 tr:nth-child(even) {
-  background-color: #dddddd;
+  background-color: #181818;
 }
 </style>
 </head>
-<body>
+<body style=\"background-color:#212224\">
 
 <table>
   <tr>
@@ -33,95 +50,149 @@ $api = file_get_contents("https://www.dota2.com/webapi/ILeaderboard/GetDivisionL
 $api = mb_convert_encoding($api, 'HTML-ENTITIES', "UTF-8");
 
 $array = explode("},{",$api);
-//$output = array_search("cz",$array);
-//echo(implode( "\r\n" , $array));
+
+//last leaderboard update
+$time_posted_position = strpos($array[0],"\"time_posted\":");
+$time_posted = substr($array[0],$time_posted_position+14,10);
+$time_posted_date = date('Y-m-d H:i:s', $time_posted);
+
+
+$time_scheduled_position = strpos($array[0],"next_scheduled_post_time\":");
+$time_scheduled = substr($array[0],$time_scheduled_position+26,10);
+$time_scheduled_date = date('Y-m-d H:i:s', $time_scheduled);
+
+
+echo nl2br("<a style=\"color:white\">"."last leaderboard update: ".$time_posted_date.' (UTC+2)'."</a>\n");
+echo nl2br("<a style=\"color:white\">"."scheduled leaderboard update: ".$time_scheduled_date.' (UTC+2)'."</a>");
+// echo date('Y-m-d H:i:s', 1680556393);
+// echo date('Y-m-d H:i:s', 1680559981);
+  
+
+
+//czsk sort  
 $i=0;
 foreach($array as $profile)
 {
+    //sk search
     $check = strpos($profile, "country\":\"sk");
     if($check == true)
     {
-        $output[$i] = $profile;
+        $allCZSKplayers[$i] = $profile;
         $i++;
     }
+    //cz search
     $check = strpos($profile, "country\":\"cz");
     if($check == true)
     {
-        $output[$i] = $profile;
+        $allCZSKplayers[$i] = $profile;
+        $i++;
+    }
+    //raviente search
+    $check = strpos($profile, "name\":\"Raviente-");
+    if($check == true)
+    {
+        $allCZSKplayers[$i] = $profile;
         $i++;
     }
 }
-$output = str_replace("\"","",$output);
-//players
+$allCZSKplayers = str_replace("\"","",$allCZSKplayers);
+
+
+//writing out players
 $countryrank = 0;
-for($j = 0; $j < count($output); $j++){
+for($j = 0; $j < count($allCZSKplayers); $j++){
 
-    $list = explode(",", $output[$j]);
-    //stats
-    for($k = 0; $k < count($list); $k++){
-        $pos = strpos($list[$k],":");   
-        $list[$k] = substr($list[$k], $pos + 1);
+  $player = explode(",", $allCZSKplayers[$j]);
 
-    }
-    $countryrank = $j+1;
+  //TEAM / COUNTRY TESTING
+  $team = "";
+  $team = get_string_between(implode("",$player),"team_tag:","country");
+  if(strlen($team) != 0){
+    $team = $team.".";
+  }
+
+  $cz_position_in_array = array_search("country:cz",$player);
+  $sk_position_in_array = array_search("country:sk",$player);
+  if($cz_position_in_array > 0){
+    $country = "<img src=\"cz.gif\" align=\"right\">";
+  }
+  elseif($sk_position_in_array > 0){
+    $country = "<img src=\"sk.gif\" align=\"right\">";
+  }
+  else{
+    $country = "<img src=\"cz.gif\" align=\"right\">";
+  }
+    //echo implode("|||",$player);
+
+  //stats
+  for($k = 0; $k < count($player); $k++){
+      $pos = strpos($player[$k],":");   
+      $player[$k] = substr($player[$k], $pos + 1);
+  }
+  
+  $countryrank = $j+1;
+  
+  //special players
+  if($player[1] == "Hobbit")
+  { 
+    echo(
+        
+      "<tr>
+      <td>".$countryrank."</td>
+      <td>".$player[0]."</td>
+      <td>"."<a style=\" color:#6188A4 \">".$team."</a>".$player[1]."  "."<img src=\"earthquake-20-20.png\">".$country."</td>
+      </tr>"
+  );
+  }
+  elseif($player[1] == "^Cechieaea")
+  { 
+    echo(
+        
+      "<tr>
+      <td>".$countryrank."</td>
+      <td>".$player[0]."  "."<img src=\"omegalul-small-15-15.png\">"."</td>
+      <td>"."<a style=\" color:#6188A4 \">".$team."</a>".$player[1].$country."</td>
+      </tr>"
+  );
+  }
+  elseif($player[1] == "scream")
+  { 
+    echo(
+        
+      "<tr>
+      <td>".$countryrank."</td>
+      <td>"."1"."  "."<img src=\"heart-15-15.png\">"." (".$player[0].")"."</td>
+      <td>"."<a style=\" color:#6188A4 \">".$team."</a>".$player[1].$country."</td>
+      </tr>"
+  );
+  }
+  elseif($player[1] == "KURRITO")
+  { 
+    echo(
+        
+      "<tr>
+      <td>".$countryrank."</td>
+      <td>".$player[0]."</td>
+      <td>"."<a style=\" color:#6188A4 \">".$team."</a>".$player[1]."  "."<img src=\"nerd-15-18.png\">".$country."</td>
+      </tr>"
+  );
+  }
+  //everybody else
+  else{
     echo(
         
         "<tr>
         <td>".$countryrank."</td>
-        <td>".$list[0]."</td>
-        <td>".$list[1]."</td>
+        <td>".$player[0]."</td>
+        <td>"."<a style=\" color:#6188A4 \">".$team."</a>".$player[1].$country."</td>
         </tr>"
 
-    );       
+    );     
+  }  
 }
 
 
-// <tr>
-// <td>Alfreds Futterkiste</td>
-// <td>Maria Anders</td>
-//</tr>
 
 
-echo("
-</table>
-
-</body>
-</html>
-
-");
-
-// $twodim[$j][$k] = $result;
-//$list[$k."1"],$list[$k."3"],$list[$k."4"],$list[$k."5"]);
-    
-
-//echo(implode("\n",$twodim));
-//echo(implode("\n",$list));
-// echo(count($output));
-// echo($result);
-//echo($twodim[0]['country']);
-// for($l = 0; $l < count($twodim); $l++)
-// {
-//     foreach ($twodim as $val){
-//         echo "<tr><td>".$val[$l][0]."</td><td>".$val[$l][1]."</td></tr>";
-//     }
-// }
-
-// echo($twodim[$l]['name']);
-
-
-// function html_table($data = array())
-// {
-//     $rows = array();
-//     foreach ($data as $row) {
-//         $cells = array();
-//         foreach ($row as $cell) {
-//             $cells[] = "<td>{$cell}</td>";
-//         }
-//         $rows[] = "<tr>" . implode('', $cells) . "</tr>";
-//     }
-//     return "<table class='hci-table'>" . implode('', $rows) . "</table>";
-// }
-
-// echo(html_table($output));
-
+echo("</table></body></html>");
 ?>
